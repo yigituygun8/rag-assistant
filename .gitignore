@@ -1,0 +1,15 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+backend/data/rag.db
+
+# Node
+node_modules/
+frontend/dist/
+
+# Env
+.env
+
+# OS
+.DS_Store
