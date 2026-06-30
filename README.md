@@ -28,6 +28,7 @@ All of this runs entirely on-device.
 | Local LLM runtime | [Microsoft Foundry Local](https://github.com/microsoft/Foundry-Local) |
 | Embedding + chat model | Foundry Local catalog (model TBD based on hardware) |
 | Storage | SQLite |
+| Model | Foundry Local Catalog (model TBD based on hardware) |
 
 ## Architecture
 
@@ -99,10 +100,9 @@ App runs at `http://localhost:5173`.
 - [ ] Testing with sample Q&A set
 - [ ] Final documentation and demo
 
-## Team
+## Made By
 
-- Yiğit Uygun
-- (add teammates here)
+- Osman Yiğit Uygun
 
 ## Acknowledgements
 
