@@ -92,8 +92,8 @@ App runs at `http://localhost:5173`.
 - [x] Project skeleton (FastAPI backend + React frontend, connected)
 - [x] SQLite schema for storing chunks and embeddings
 - [x] Cosine similarity retrieval function
-- [ ] Foundry Local installation and "hello model" verification
-- [ ] Embedding generation wired into `llm.py`
+- [x] Foundry Local installation and "hello model" verification
+- [x] Embedding generation wired into `llm.py`
 - [ ] Document ingestion pipeline (`ingest.py`)
 - [ ] Local LLM chat integration for answer generation
 - [ ] Source citation in answers

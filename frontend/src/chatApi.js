@@ -2,16 +2,8 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
 ).trim();
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out")), ms)
-    ),
-  ]);
-}
-
-function buildMockAnswer(question) {
+function buildMockAnswer(question, reason) {
+  console.warn(`[askAssistant] falling back to mock. reason: ${reason}`);
   return {
     answer:
       "Mock response: I received your question: " +
@@ -22,16 +14,17 @@ function buildMockAnswer(question) {
   };
 }
 
-export async function askAssistant(question) {
+export async function askAssistant(question, { timeoutMs = 12000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await withTimeout(
-      fetch(API_BASE_URL + "/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      }),
-      12000
-    );
+    const response = await fetch(API_BASE_URL + "/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       throw new Error("Backend returned status " + response.status);
@@ -44,9 +37,18 @@ export async function askAssistant(question) {
       mocked: false,
     };
   } catch (error) {
-    if (error instanceof TypeError || /timed out/i.test(error.message)) {
-      return buildMockAnswer(question);
+    if (error.name === "AbortError") {
+      return buildMockAnswer(question, `request exceeded ${timeoutMs}ms`);
     }
+    if (error instanceof TypeError) {
+      return buildMockAnswer(
+        question,
+        `network error, is the backend actually running at ${API_BASE_URL}? check CORS too`
+      );
+    }
+    // bad JSON, non-2xx status, anything else: this is a real bug, don't hide it
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
