@@ -65,13 +65,46 @@ rag-assistant/
 - Node.js 18+
 - [Foundry Local](https://github.com/microsoft/Foundry-Local) installed
 
-### Backend
+### First-time startup flow
+
+The ingestion step is separate from the app startup.
+
+1. Put your source PDFs in `backend/data/docs/`.
+2. Create the backend virtual environment once.
+3. Activate that virtual environment in any terminal where you want to run backend commands.
+4. Install backend dependencies once.
+5. Run `python ingest.py` from `backend/` to build or refresh `backend/data/rag.db`.
+6. Start the backend API with `uvicorn main:app --reload`.
+7. Start the frontend with `npm run dev` from `frontend/`.
+
+You only need to rerun `python ingest.py` when the documents in `backend/data/docs/` change.
+
+What the venv does: it is a local Python environment for this project only. It keeps this app's packages separate from your system Python and from other projects, so installs do not clash.
+
+### Backend setup
+
+Create the venv once:
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate   # on Windows: venv\Scripts\activate
+```
+
+Install dependencies and build the document index once:
+
+```bash
 pip install -r requirements.txt
+python ingest.py
+```
+
+### Backend run
+
+Open a new terminal or reuse one, activate the venv again, then start the API:
+
+```bash
+cd backend
+source venv/bin/activate   # on Windows: venv\Scripts\activate
 uvicorn main:app --reload
 ```
 
@@ -94,7 +127,7 @@ App runs at `http://localhost:5173`.
 - [x] Cosine similarity retrieval function
 - [x] Foundry Local installation and "hello model" verification
 - [x] Embedding generation wired into `llm.py`
-- [ ] Document ingestion pipeline (`ingest.py`)
+- [x] Document ingestion pipeline (`ingest.py`)
 - [ ] Local LLM chat integration for answer generation
 - [ ] Source citation in answers
 - [ ] Testing with sample Q&A set
