@@ -3,6 +3,7 @@ venv/
 __pycache__/
 *.pyc
 backend/data/rag.db
+backend/data/docs/*.pdf
 
 # Node
 node_modules/
