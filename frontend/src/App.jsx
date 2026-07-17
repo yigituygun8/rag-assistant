@@ -28,10 +28,15 @@ function App() {
   const [lastError, setLastError] = useState("");
   const listRef = useRef(null); // Ref for the chat log container to manage scrolling
 
-  const hasMockedAnswer = useMemo(
-    () => messages.some((message) => message.role === "assistant" && message.meta?.mocked),
-    [messages]
-  ); // useMemo is a React hook that memoizes the result of a computation. In this case, it checks if any assistant message has been mocked, and only recalculates when the messages array changes. Returns true if there is at least one mocked assistant message, otherwise false.
+  const hasMockedAnswer = useMemo(() => {
+    // Only show the fallback warning if the most recent assistant response was mocked.
+    // This allows the warning to disappear once the backend becomes reachable again.
+    const assistantMessages = messages.filter((message) => message.role === "assistant");
+    if (assistantMessages.length === 0) {
+      return false;
+    }
+    return !!assistantMessages[assistantMessages.length - 1].meta?.mocked;
+  }, [messages]);
 
   useEffect(() => {
     if (!listRef.current) {
@@ -84,7 +89,7 @@ function App() {
     <div className="app-shell">
       <div className="ambient-shape ambient-a" />
       <div className="ambient-shape ambient-b" />
-
+      
       <main className="chat-card">
         <header className="chat-header">
           <div>
@@ -157,9 +162,13 @@ function App() {
         {lastError && <p className="error-text">Last error: {lastError}</p>}
         {hasMockedAnswer && (
           <p className="mock-note">
-            Running in fallback mode for some responses because backend was unreachable.
+            Running in fallback mode because the backend is currently unreachable.
           </p>
         )}
+
+        <p className="footer-text">
+          Made By Osman Yiğit Uygun: <a href="https://github.com/yigituygun8">GitHub</a> | <a href="https://www.linkedin.com/in/osmanyigituygun8/">LinkedIn</a>
+        </p>
       </main>
     </div>
   );

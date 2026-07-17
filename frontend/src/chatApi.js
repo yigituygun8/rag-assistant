@@ -14,7 +14,7 @@ function buildMockAnswer(question, reason) {
   };
 }
 
-export async function askAssistant(question, { timeoutMs = 12000 } = {}) {
+export async function askAssistant(question, { timeoutMs = 60000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 

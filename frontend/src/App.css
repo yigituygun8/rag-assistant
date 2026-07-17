@@ -318,6 +318,12 @@ button:disabled {
   margin-bottom: 12px;
 }
 
+.footer-text {
+  margin: 8px 14px 12px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
