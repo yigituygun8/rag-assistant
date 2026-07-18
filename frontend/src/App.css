@@ -198,17 +198,38 @@ body {
 .source-list {
   margin-top: 10px;
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.source-pill {
+.source-detail {
   background: #f4efe7;
   border: 1px solid #e0d8cd;
+  border-radius: 8px;
   color: #4d5760;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 0.73rem;
+  overflow: hidden;
+  max-width: 100%;
+  transition: all 0.2s ease;
+}
+
+.source-detail > summary.source-pill {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  outline: none;
+}
+
+.source-content {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: #5f6a72;
+  border-top: 1px solid #e0d8cd;
+  background: #fcfbfa;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .typing {

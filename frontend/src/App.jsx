@@ -114,11 +114,24 @@ function App() {
 
                 {Array.isArray(message.sources) && message.sources.length > 0 && (
                   <div className="source-list">
-                    {message.sources.map((source, index) => (
-                      <span className="source-pill" key={index}>
-                        {source}
-                      </span>
-                    ))}
+                    {message.sources.map((src, index) => {
+                      const id = src.id || index + 1;
+                      const sourceName = src.source || src;
+                      const content = src.content;
+                      
+                      return (
+                        <details className="source-detail" key={index}>
+                          <summary className="source-pill">
+                            [{id}] {sourceName}
+                          </summary>
+                          {content && (
+                            <div className="source-content">
+                              {content}
+                            </div>
+                          )}
+                        </details>
+                      );
+                    })}
                   </div>
                 )}
               </div>

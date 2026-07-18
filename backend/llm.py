@@ -90,9 +90,16 @@ def _format_context_chunks(context_chunks: list[dict[str, Any]]) -> str:
 APP_IDENTITY = f"Local RAG Assistant, a document question-answering app running entirely on-device via Foundry Local, using {EMBEDDING_MODEL_NAME} for embeddings and {CHAT_MODEL_NAME} for chat completions."
 
 GROUNDED_SYSTEM_PROMPT = (
-    "You are a grounded document QA assistant. Answer only using the provided context. "
-    "If the context does not contain the answer, say that you could not find it in the documents. "
-    "When possible, mention the source names from the context."
+    "You are a grounded document QA assistant. Use ONLY the provided context, "
+    "never your own general knowledge or training data.\n\n"
+    "Rules:\n"
+    "1. Synthesize information across ALL relevant chunks, not just the first one. "
+    "If multiple chunks touch on the topic, combine them into a coherent, thorough answer.\n"
+    "2. Be educational: explain concepts clearly, give examples or comparisons if the "
+    "context provides them, and organize longer answers with structure (e.g. bullet points).\n"
+    "3. Do not artificially shorten your answer. Cover what the context supports in full.\n"
+    "4. If the context has nothing related to the question, say so honestly.\n"
+    "5. Cite claims using chunk numbers, e.g. [1], [2]."
 )
 
 def generate_answer(question: str, context_chunks: list[dict[str, Any]]) -> str:
@@ -103,9 +110,10 @@ def generate_answer(question: str, context_chunks: list[dict[str, Any]]) -> str:
         system_prompt = GROUNDED_SYSTEM_PROMPT
         context = _format_context_chunks(context_chunks)
         user_content = (
-            f"Context:\n{context}\n\n"
+            f"Context (ordered by relevance, most relevant first):\n{context}\n\n"
             f"Question: {question}\n\n"
-            "Write a concise answer based only on the context."
+            "Answer directly using the most relevant chunk(s). Do not qualify your answer "
+            "unless the context truly has nothing related to the question."
         )
     else:
         current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
