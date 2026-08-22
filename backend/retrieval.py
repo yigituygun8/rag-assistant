@@ -39,4 +39,9 @@ def get_top_chunks(query_embedding, k=3, score_threshold=0.5, debug=True):
     if debug:
         for score, chunk in scored[:k]:
             print(f"  score={score:.3f}  source={chunk.get('source')}")
-    return [chunk for score, chunk in scored[:k] if score >= score_threshold]
+
+    # Prefer chunks above the score threshold, but if none meet the threshold
+    # return the top-k results anyway so the assistant can cite sources.
+    top_k = scored[:k]
+    filtered = [chunk for score, chunk in top_k if score >= score_threshold]
+    return filtered if filtered else [chunk for score, chunk in top_k]

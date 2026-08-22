@@ -80,7 +80,17 @@ def ask(req: QuestionRequest):
         logger.exception("inference failed")
         raise HTTPException(status_code=502, detail=f"Model inference failed: {exc}") from exc
 
-    return {"answer": answer, "sources": [c.get("source", "unknown") for c in chunks]}
+    return {
+        "answer": answer,
+        "sources": [
+            {
+                "id": i + 1,
+                "source": c.get("source", "unknown"),
+                "content": c.get("content", "")
+            }
+            for i, c in enumerate(chunks)
+        ]
+    }
 
 
 @app.get("/health")
