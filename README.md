@@ -128,10 +128,10 @@ App runs at `http://localhost:5173`.
 - [x] Foundry Local installation and "hello model" verification
 - [x] Embedding generation wired into `llm.py`
 - [x] Document ingestion pipeline (`ingest.py`)
-- [ ] Local LLM chat integration for answer generation
-- [ ] Source citation in answers
-- [ ] Testing with sample Q&A set
-- [ ] Final documentation and demo
+- [x] Local LLM chat integration for answer generation
+- [x] Source citation in answers
+- [x] Testing with sample Q&A set
+- [x] Final documentation and demo
 
 ## Made By
 
