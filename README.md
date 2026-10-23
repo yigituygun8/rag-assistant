@@ -1,143 +1,204 @@
 # Local RAG Assistant
 
-A fully offline document Q&A assistant built with **Microsoft Foundry Local** for on-device LLM inference and a custom **RAG (Retrieval-Augmented Generation)** pipeline. No cloud APIs, no API keys, no internet connection required after setup.
+A local document question-answering assistant built with **Microsoft Foundry Local** and a custom **RAG (Retrieval-Augmented Generation)** pipeline. Documents, embeddings, retrieval, and answer generation run on the local machine after the required models and packages have been installed.
 
 This project was built as part of the Microsoft AI Innovators Summer Program.
 
-> **Status:** Work in progress. See [Roadmap](#roadmap) below for current progress.
+> **Status:** Working prototype. The current application supports PDF ingestion from the local data directory, semantic retrieval, grounded answers with source citations, and a React chat interface.
 
 ## What it does
 
-You give it a small collection of documents (course notes, FAQs, manuals, etc.). It:
+The application:
 
-1. Splits the documents into chunks
-2. Generates an embedding (a numeric vector representing meaning) for each chunk using a local embedding model
-3. Stores chunks + embeddings in a local SQLite database
-4. When you ask a question, embeds your question and finds the most semantically similar chunks via cosine similarity
-5. Feeds those chunks as context to a local LLM (via Foundry Local) to generate a grounded answer
-6. If the answer isn't in the documents, the assistant says so instead of making something up
+1. Reads PDF documents from `backend/data/docs/`.
+2. Extracts text page by page with `pypdf`.
+3. Splits each page into chunks of up to 1,200 characters and discards chunks shorter than 200 characters.
+4. Generates an embedding for every chunk with the local `qwen3-embedding-0.6b` model.
+5. Stores documents, chunks, page numbers, and JSON-serialized embeddings in `backend/data/rag.db`.
+6. Embeds each question and ranks all stored chunks with cosine similarity.
+7. Sends the top three chunks meeting the `0.45` similarity threshold to the local `qwen2.5-1.5b` chat model.
+8. Displays the generated answer and clickable source citations in the web UI.
 
-All of this runs entirely on-device.
+When relevant context is found, the model is instructed to answer only from that context and cite factual claims with chunk numbers such as `[1]`. When no chunk passes the threshold, the model receives no document context and responds conversationally.
 
 ## Tech stack
 
-| Layer | Tech |
+| Layer | Technology |
 |---|---|
-| Frontend | React (Vite) |
-| Backend / API | Python, FastAPI |
-| Local LLM runtime | [Microsoft Foundry Local](https://github.com/microsoft/Foundry-Local) |
-| Embedding + chat model | Foundry Local catalog (model TBD based on hardware) |
+| Frontend | React 18, Vite 5 |
+| Backend/API | Python, FastAPI, Uvicorn |
+| Local model runtime | [Microsoft Foundry Local](https://github.com/microsoft/Foundry-Local) |
+| Chat model | `qwen2.5-1.5b` by default |
+| Embedding model | `qwen3-embedding-0.6b` by default |
+| Document extraction | `pypdf` |
+| Retrieval | NumPy cosine similarity |
 | Storage | SQLite |
-| Model | Foundry Local Catalog (model TBD based on hardware) |
+
+The model names can be changed with `FOUNDRY_LOCAL_CHAT_MODEL` and `FOUNDRY_LOCAL_EMBEDDING_MODEL`. The Foundry Local SDK application name can be changed with `FOUNDRY_LOCAL_APP_NAME`.
 
 ## Architecture
 
+```text
+React/Vite frontend
+        │ POST /ask
+        ▼
+FastAPI backend
+   ┌────┼───────────────┐
+   │    │               │
+   │    ▼               ▼
+   │  llm.py       retrieval.py
+   │    │               │
+   │    ▼               ▼
+   │ Foundry Local   SQLite chunks
+   │ (chat + embed)  + embeddings
+   │
+   └── ingest.py ── PDFs in backend/data/docs/
 ```
-React frontend  --HTTP-->  FastAPI backend  --Foundry Local SDK-->  Local LLM
-                                  |
-                                  v
-                            SQLite (chunks + embeddings)
-```
+
+The API warms up both models during startup. If model loading fails, the server still starts in degraded mode and `/health` reports `models_ready: false`; `/ask` returns HTTP 503 until the models are ready.
 
 ## Project structure
 
-```
+```text
 rag-assistant/
 ├── backend/
-│   ├── main.py          # FastAPI app and routes
-│   ├── ingest.py         # document chunking + embedding pipeline
-│   ├── retrieval.py      # similarity search (get_top_chunks)
-│   ├── llm.py             # Foundry Local wrapper (embeddings + chat)
-│   ├── db.py               # SQLite setup and helpers
+│   ├── main.py          # FastAPI application, lifecycle, and API routes
+│   ├── ingest.py        # PDF extraction, chunking, hashing, and indexing CLI
+│   ├── retrieval.py     # In-memory cosine-similarity retrieval
+│   ├── llm.py           # Foundry Local model loading, embeddings, and chat
+│   ├── db.py            # SQLite schema and data-access helpers
 │   ├── requirements.txt
 │   └── data/
-│       ├── docs/          # source documents
-│       └── rag.db          # generated SQLite database
-└── frontend/
-    └── ...                  # Vite + React app
+│       ├── docs/        # Local PDF sources (ignored by git)
+│       └── rag.db       # Generated SQLite database (ignored by git)
+├── frontend/
+│   ├── src/App.jsx      # Chat UI and citation rendering
+│   ├── src/chatApi.js   # Backend client and timeout handling
+│   └── .env.example     # Optional API URL configuration
+├── architecture_analysis.md
+└── RAG_NOTES.md
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- [Foundry Local](https://github.com/microsoft/Foundry-Local) installed
+- Windows with [Microsoft Foundry Local](https://github.com/microsoft/Foundry-Local) installed and usable.
+- Python 3.10 or newer.
+- Node.js 18 or newer.
+- Enough local disk space and memory for the selected Foundry Local models.
 
-### First-time startup flow
-
-The ingestion step is separate from the app startup.
-
-1. Put your source PDFs in `backend/data/docs/`.
-2. Create the backend virtual environment once.
-3. Activate that virtual environment in any terminal where you want to run backend commands.
-4. Install backend dependencies once.
-5. Run `python ingest.py` from `backend/` to build or refresh `backend/data/rag.db`.
-6. Start the backend API with `uvicorn main:app --reload`.
-7. Start the frontend with `npm run dev` from `frontend/`.
-
-You only need to rerun `python ingest.py` when the documents in `backend/data/docs/` change.
-
-What the venv does: it is a local Python environment for this project only. It keeps this app's packages separate from your system Python and from other projects, so installs do not clash.
+The first model download requires connectivity. After the packages and models are available locally, inference does not require a cloud API, API key, or application network connection.
 
 ### Backend setup
 
-Create the venv once:
+From PowerShell:
 
-```bash
+```powershell
 cd backend
 python -m venv venv
-source venv/bin/activate   # on Windows: venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-Install dependencies and build the document index once:
+If PowerShell prevents script activation, use `.\venv\Scripts\python.exe` directly or enable the script policy for your user account according to your organization’s policy.
 
-```bash
-pip install -r requirements.txt
+### Add documents and build the index
+
+Place PDF files in `backend/data/docs/`, then run:
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
 python ingest.py
 ```
 
-### Backend run
+Ingestion is hash-aware: unchanged PDFs are skipped. To force re-ingestion:
 
-Open a new terminal or reuse one, activate the venv again, then start the API:
+```powershell
+python ingest.py --force
+```
 
-```bash
+Run ingestion again whenever the source PDFs change. There is currently no runtime upload endpoint in the application.
+
+### Start the backend
+
+```powershell
 cd backend
-source venv/bin/activate   # on Windows: venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 uvicorn main:app --reload
 ```
 
-API runs at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
+The API runs at `http://localhost:8000`.
 
-### Frontend
+- Interactive API docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
+- Question endpoint: `POST http://localhost:8000/ask`
 
-```bash
+Optional environment variables:
+
+```text
+FOUNDRY_LOCAL_APP_NAME=rag_assistant
+FOUNDRY_LOCAL_CHAT_MODEL=qwen2.5-1.5b
+FOUNDRY_LOCAL_EMBEDDING_MODEL=qwen3-embedding-0.6b
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+### Start the frontend
+
+In a second terminal:
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-App runs at `http://localhost:5173`.
+The Vite development server normally runs at `http://localhost:5173`. To use another backend URL, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
+
+If the backend is unreachable or a request times out, the frontend deliberately shows a clearly marked mock fallback response so the UI remains usable. This fallback is not a RAG answer and does not contain document sources.
+
+## API example
+
+Request:
+
+```http
+POST /ask
+Content-Type: application/json
+
+{"question":"What is Scrum?"}
+```
+
+Successful responses contain an `answer` string and a `sources` array. Each source includes an `id`, source filename, page number, and retrieved chunk content.
+
+## Current limitations
+
+- Retrieval loads every chunk and computes cosine similarity in memory, so the current approach is intended for small document collections.
+- Embeddings are stored as JSON text rather than a vector index or binary vector format.
+- Only PDF files in the local ingestion directory are supported.
+- There is no authentication, multi-user session storage, or runtime document-management UI.
+- Foundry Local model loading is coupled to the Windows SDK dependency, which makes isolated CI testing harder.
+- The frontend fallback is useful for development feedback but must not be mistaken for a grounded answer.
 
 ## Roadmap
 
-- [x] Project skeleton (FastAPI backend + React frontend, connected)
-- [x] SQLite schema for storing chunks and embeddings
-- [x] Cosine similarity retrieval function
-- [x] Foundry Local installation and "hello model" verification
-- [x] Embedding generation wired into `llm.py`
-- [x] Document ingestion pipeline (`ingest.py`)
-- [x] Local LLM chat integration for answer generation
-- [x] Source citation in answers
-- [x] Testing with sample Q&A set
-- [x] Final documentation and demo
+- [x] FastAPI backend and React frontend
+- [x] SQLite schema for documents, chunks, page numbers, and embeddings
+- [x] PDF ingestion with content-hash based skip logic
+- [x] Foundry Local embedding and chat integration
+- [x] Startup model warm-up and health reporting
+- [x] Cosine-similarity retrieval with a relevance threshold
+- [x] Grounded answers with source citations
+- [x] Clickable citation badges in the frontend
+- [ ] Runtime PDF upload and ingestion
+- [ ] Scalable vector indexing
+- [ ] Automated backend and frontend test coverage
 
-## Made By
+## Made by
 
 - Osman Yiğit Uygun
 
 ## Acknowledgements
 
-- Project plan based on the Microsoft Tech Community post [Building Your First Local RAG Application with Foundry Local](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/building-your-first-local-rag-application-with-foundry-local/4501968)
-- Built as part of the Microsoft AI Innovators Summer Program
+- Project plan based on the Microsoft Tech Community post [Building Your First Local RAG Application with Foundry Local](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/building-your-first-local-rag-application-with-foundry-local/4501968).
+- Built as part of the Microsoft AI Innovators Summer Program.
