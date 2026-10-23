@@ -32,15 +32,15 @@ def _file_hash(path: Path) -> str:
 	return hasher.hexdigest()
 
 
-def _extract_pdf_text(path: Path) -> list[str]:
+def _extract_pdf_pages(path: Path) -> list[tuple[int, str]]:
 	reader = PdfReader(str(path))
-	pages: list[str] = []
+	pages: list[tuple[int, str]] = []
 
-	for page in reader.pages:
+	for page_num, page in enumerate(reader.pages, start=1):
 		text = page.extract_text() or ""
 		cleaned = "\n".join(line.rstrip() for line in text.splitlines()).strip()
 		if cleaned:
-			pages.append(cleaned)
+			pages.append((page_num, cleaned))
 
 	return pages
 
@@ -78,10 +78,11 @@ def _split_text_into_chunks(text: str) -> list[str]:
 	return [c for c in chunks if len(c) >= MIN_CHUNK_CHARACTERS]
 
 
-def _chunk_document(pages: Iterable[str]) -> list[str]:
-	chunks: list[str] = []
-	for page_text in pages:
-		chunks.extend(_split_text_into_chunks(page_text))
+def _chunk_document(pages: Iterable[tuple[int, str]]) -> list[tuple[int, str]]:
+	chunks: list[tuple[int, str]] = []
+	for page_num, page_text in pages:
+		for chunk in _split_text_into_chunks(page_text):
+			chunks.append((page_num, chunk))
 	return chunks
 
 
@@ -93,26 +94,29 @@ def ingest_pdf(path: Path) -> int:
 		print(f"skipping {path.name}: already ingested")
 		return 0
 
-	pages = _extract_pdf_text(path)
+	pages = _extract_pdf_pages(path)
 	chunks = _chunk_document(pages)
 
 	if not chunks:
 		print(f"warning: no text extracted from {path.name}")
 		return 0
 
-	embedded_chunks = [(chunk_text, embed_text(chunk_text)) for chunk_text in chunks]
+	embedded_chunks = [
+		(page_num, chunk_text, embed_text(chunk_text))
+		for page_num, chunk_text in chunks
+	]
 
 	document_id = upsert_document(path.name, content_hash)
 	delete_chunks_for_document(document_id)
 
-	for chunk_index, (chunk_text, embedding) in enumerate(embedded_chunks):
-		insert_chunk(document_id, chunk_index, chunk_text, embedding)
+	for chunk_index, (page_num, chunk_text, embedding) in enumerate(embedded_chunks):
+		insert_chunk(document_id, chunk_index, chunk_text, embedding, page_number=page_num)
 
 	print(f"ingested {path.name}: {len(chunks)} chunks")
 	return len(chunks)
 
 
-def ingest_all_documents() -> int:
+def ingest_all_documents(force: bool = False) -> int:
 	init_db()
 
 	if not DOCS_DIR.exists():
@@ -125,6 +129,13 @@ def ingest_all_documents() -> int:
 
 	total_chunks = 0
 	for pdf_path in pdf_files:
+		if force:
+			# remove existing record so it forces re-ingest
+			from db import get_connection
+			conn = get_connection()
+			conn.execute("DELETE FROM documents WHERE filename = ?", (pdf_path.name,))
+			conn.commit()
+			conn.close()
 		total_chunks += ingest_pdf(pdf_path)
 
 	print(f"done: processed {len(pdf_files)} PDFs and stored {total_chunks} chunks")
@@ -133,8 +144,9 @@ def ingest_all_documents() -> int:
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Ingest PDF documents into the local RAG database.")
-	parser.parse_args()
-	ingest_all_documents()
+	parser.add_argument("--force", action="store_true", help="Force re-ingestion of all documents")
+	args = parser.parse_args()
+	ingest_all_documents(force=args.force)
 
 
 if __name__ == "__main__":

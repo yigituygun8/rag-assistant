@@ -21,16 +21,62 @@ function createMessage(role, content, extra = {}) {
   };
 }
 
+function renderFormattedContent(content, messageId) {
+  if (!content) return null;
+
+  // Split text by bracket citations like [1], [2], [1][2], [1, 2]
+  const regex = /(\[\d+(?:[,\s]*\d+)*\])/g;
+  const parts = content.split(regex);
+
+  return (
+    <div className="message-body">
+      {parts.map((part, index) => {
+        const citationMatch = part.match(/^\[([\d,\s]+)\]$/);
+        if (citationMatch) {
+          const numbers = citationMatch[1]
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .map((num) => parseInt(num, 10))
+            .filter((num) => !isNaN(num));
+
+          return (
+            <span key={index} className="citation-badges-wrapper">
+              {numbers.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  className="citation-badge"
+                  title={`View Source [${num}]`}
+                  onClick={() => {
+                    const el = document.getElementById(`source-${messageId}-${num}`);
+                    if (el) {
+                      el.open = true;
+                      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                  }}
+                >
+                  [{num}]
+                </button>
+              ))}
+            </span>
+          );
+        }
+
+        // Render plain text preserving line breaks
+        return <span key={index}>{part}</span>;
+      })}
+    </div>
+  );
+}
+
 function App() {
-  const [messages, setMessages] = useState([WELCOME_MESSAGE]); // Initialize with the welcome message
-  const [draft, setDraft] = useState(""); // State for the current draft message
-  const [isSending, setIsSending] = useState(false); // State to track if a message is being sent
+  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+  const [draft, setDraft] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [lastError, setLastError] = useState("");
-  const listRef = useRef(null); // Ref for the chat log container to manage scrolling
+  const listRef = useRef(null);
 
   const hasMockedAnswer = useMemo(() => {
-    // Only show the fallback warning if the most recent assistant response was mocked.
-    // This allows the warning to disappear once the backend becomes reachable again.
     const assistantMessages = messages.filter((message) => message.role === "assistant");
     if (assistantMessages.length === 0) {
       return false;
@@ -89,7 +135,7 @@ function App() {
     <div className="app-shell">
       <div className="ambient-shape ambient-a" />
       <div className="ambient-shape ambient-b" />
-      
+
       <main className="chat-card">
         <header className="chat-header">
           <div>
@@ -110,19 +156,35 @@ function App() {
                   "bubble " + (message.role === "user" ? "bubble-user" : "bubble-assistant")
                 }
               >
-                <p>{message.content}</p>
+                {message.role === "assistant" ? (
+                  renderFormattedContent(message.content, message.id)
+                ) : (
+                  <p>{message.content}</p>
+                )}
 
                 {Array.isArray(message.sources) && message.sources.length > 0 && (
                   <div className="source-list">
+                    <div className="source-list-header">
+                      <span>Sources & Citations:</span>
+                    </div>
                     {message.sources.map((src, index) => {
                       const id = src.id || index + 1;
                       const sourceName = src.source || src;
+                      const page = src.page_number;
                       const content = src.content;
-                      
+
                       return (
-                        <details className="source-detail" key={index}>
+                        <details
+                          className="source-detail"
+                          id={`source-${message.id}-${id}`}
+                          key={index}
+                        >
                           <summary className="source-pill">
-                            [{id}] {sourceName}
+                            <span className="source-id-badge">[{id}]</span>
+                            <span className="source-filename">{sourceName}</span>
+                            {page && (
+                              <span className="source-page-badge">Page {page}</span>
+                            )}
                           </summary>
                           {content && (
                             <div className="source-content">

@@ -3,7 +3,7 @@ from db import get_all_chunks
 
 # Note that it loads every chunk into memory, which is fine for small datasets but would need to be replaced with a more scalable solution for larger datasets. For example, you could store the embeddings in a vector database like Pinecone or Weaviate, or use FAISS to index them on disk.
 # Also, time complexity is O(n) for each query, which is fine for small datasets but would need to be improved for larger datasets. For example, you could use approximate nearest neighbor search (ANN) to reduce the time complexity to O(log n) or O(1) depending on the algorithm used.
-def get_top_chunks(query_embedding, k=3, score_threshold=0.5, debug=True):
+def get_top_chunks(query_embedding, k=3, score_threshold=0.45, debug=True):
     chunks = get_all_chunks()
     if not chunks:
         return []
@@ -38,10 +38,9 @@ def get_top_chunks(query_embedding, k=3, score_threshold=0.5, debug=True):
     scored.sort(key=lambda pair: pair[0], reverse=True)
     if debug:
         for score, chunk in scored[:k]:
-            print(f"  score={score:.3f}  source={chunk.get('source')}")
+            print(f"  score={score:.3f}  source={chunk.get('source')} page={chunk.get('page_number')}")
 
-    # Prefer chunks above the score threshold, but if none meet the threshold
-    # return the top-k results anyway so the assistant can cite sources.
     top_k = scored[:k]
+    # Only return chunks that meet the relevance score threshold so we don't hallucinate citations
     filtered = [chunk for score, chunk in top_k if score >= score_threshold]
-    return filtered if filtered else [chunk for score, chunk in top_k]
+    return filtered

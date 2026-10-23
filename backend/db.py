@@ -25,6 +25,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             document_id INTEGER NOT NULL,
             chunk_index INTEGER NOT NULL,
+            page_number INTEGER NOT NULL DEFAULT 1,
             text TEXT NOT NULL,
             embedding TEXT NOT NULL,
             FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE);
@@ -69,11 +70,11 @@ def delete_chunks_for_document(document_id):
     conn.close()
 
 
-def insert_chunk(document_id, chunk_index, text, embedding):
+def insert_chunk(document_id, chunk_index, text, embedding, page_number=1):
     conn = get_connection()
     conn.execute(
-        "INSERT INTO chunks (document_id, chunk_index, text, embedding) VALUES (?, ?, ?, ?)",
-        (document_id, chunk_index, text, json.dumps(embedding))
+        "INSERT INTO chunks (document_id, chunk_index, page_number, text, embedding) VALUES (?, ?, ?, ?, ?)",
+        (document_id, chunk_index, page_number, text, json.dumps(embedding))
     )
     conn.commit()
     conn.close()
@@ -82,12 +83,18 @@ def insert_chunk(document_id, chunk_index, text, embedding):
 def get_all_chunks():
     conn = get_connection()
     rows = conn.execute("""
-        SELECT chunks.id, documents.filename, chunks.text, chunks.embedding
+        SELECT chunks.id, documents.filename, chunks.page_number, chunks.text, chunks.embedding
         FROM chunks
         JOIN documents ON chunks.document_id = documents.id
     """).fetchall()
     conn.close()
     return [
-        {"id": r[0], "source": r[1], "content": r[2], "embedding": json.loads(r[3])}
+        {
+            "id": r[0],
+            "source": r[1],
+            "page_number": r[2],
+            "content": r[3],
+            "embedding": json.loads(r[4])
+        }
         for r in rows
     ]

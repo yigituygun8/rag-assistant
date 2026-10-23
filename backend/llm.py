@@ -83,8 +83,10 @@ def _format_context_chunks(context_chunks: list[dict[str, Any]]) -> str:
     lines = []
     for index, chunk in enumerate(context_chunks, start=1):
         source = chunk.get("source", "unknown source")
+        page = chunk.get("page_number")
+        page_info = f", Page {page}" if page else ""
         content = (chunk.get("content") or "").strip()
-        lines.append(f"[{index}] Source: {source}\n{content}")
+        lines.append(f"[{index}] Source: {source}{page_info}\n{content}")
     return "\n\n".join(lines)
 
 APP_IDENTITY = f"Local RAG Assistant, a document question-answering app running entirely on-device via Foundry Local, using {EMBEDDING_MODEL_NAME} for embeddings and {CHAT_MODEL_NAME} for chat completions."
@@ -99,7 +101,7 @@ GROUNDED_SYSTEM_PROMPT = (
     "context provides them, and organize longer answers with structure (e.g. bullet points).\n"
     "3. Do not artificially shorten your answer. Cover what the context supports in full.\n"
     "4. If the context has nothing related to the question, say so honestly.\n"
-    "5. Cite claims using chunk numbers, e.g. [1], [2]."
+    "5. Citation requirement: You MUST cite every factual claim or sentence using chunk numbers in brackets, e.g. [1], [2]. If multiple chunks apply, use [1][2]."
 )
 
 def generate_answer(question: str, context_chunks: list[dict[str, Any]]) -> str:
@@ -112,8 +114,10 @@ def generate_answer(question: str, context_chunks: list[dict[str, Any]]) -> str:
         user_content = (
             f"Context (ordered by relevance, most relevant first):\n{context}\n\n"
             f"Question: {question}\n\n"
-            "Answer directly using the most relevant chunk(s). Do not qualify your answer "
-            "unless the context truly has nothing related to the question."
+            "Instructions:\n"
+            "- Answer directly using the provided context chunks.\n"
+            "- CRITICAL: Insert citation brackets like [1], [2] at the end of sentences to show which chunk the information comes from.\n"
+            "- Do not invent facts or mention information not present in the context."
         )
     else:
         current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -202,9 +202,55 @@ body {
   gap: 8px;
 }
 
+.message-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.citation-badges-wrapper {
+  display: inline-flex;
+  gap: 3px;
+  margin: 0 3px;
+  vertical-align: baseline;
+}
+
+.citation-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e4edf4;
+  color: #1a5276;
+  border: 1px solid #b7d1e2;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.citation-badge:hover {
+  background: #1a5276;
+  color: #ffffff;
+  border-color: #1a5276;
+  transform: translateY(-1px);
+}
+
+.source-list-header {
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #837b71;
+  margin-top: 4px;
+}
+
 .source-detail {
-  background: #f4efe7;
-  border: 1px solid #e0d8cd;
+  background: #f7f3ed;
+  border: 1px solid #e2dbd0;
   border-radius: 8px;
   color: #4d5760;
   overflow: hidden;
@@ -212,14 +258,44 @@ body {
   transition: all 0.2s ease;
 }
 
+.source-detail[open] {
+  background: #fffdf9;
+  border-color: #d1c4b2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
 .source-detail > summary.source-pill {
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 7px 10px;
   font-size: 0.75rem;
   font-weight: 600;
   border: none;
   background: transparent;
   outline: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.source-id-badge {
+  color: #1a5276;
+  font-weight: 700;
+}
+
+.source-filename {
+  color: #38424a;
+  word-break: break-all;
+}
+
+.source-page-badge {
+  background: #e8ded1;
+  color: #615343;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .source-content {

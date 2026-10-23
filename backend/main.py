@@ -86,6 +86,7 @@ def ask(req: QuestionRequest):
             {
                 "id": i + 1,
                 "source": c.get("source", "unknown"),
+                "page_number": c.get("page_number"),
                 "content": c.get("content", "")
             }
             for i, c in enumerate(chunks)
